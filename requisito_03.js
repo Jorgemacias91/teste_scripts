@@ -48,6 +48,9 @@ define(["N/search"], function (search) {
       log.debug("vendorS", vendorS);
       log.debug("total", total);
       log.debug("location", location);
+      if(vendor == vendorS){
+        log.debug("es igual el vendor", null)
+      }
     } catch (error) {
       log.error("Error Map...", error);
     }
