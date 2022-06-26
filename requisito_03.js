@@ -6,26 +6,25 @@
  * @name REQUISITO_03 Processamento em massa
  */
 
-define(["N/search"], function (search) {
+define(["N/search", "N/runtime", "N/render", "email"], function (search, runtime, render, email) {
   function getInputData() {
+    log.debug("getInputData", null)
     var vendorbillSearh = search.create({
       type: "vendorbill",
       filters: [
         ["type", "anyof", "VendBill"],
         "AND",
-        ["status", "anyof", "VendBill:B"],
-        "AND",
+        //["status", "anyof", "VendBill:B"],
+        //"AND",
         ["trandate", "within", "lastmonth"],
       ],
       columns: [
         "total", 
         "memo", 
         "refnumber", 
-        "location", 
-        search.createColumn({
-        name: "internalid",
-        join: "vendor"
-     })],
+        "location",
+        "entity"
+      ],
     });
 
     return vendorbillSearh;
@@ -36,21 +35,17 @@ define(["N/search"], function (search) {
    */
   function map(scriptContext) {
     try {
-      var vendor = Number(runtime.getCurrentScript().getParameter({ name: '	custscript_param_vendor' }));
-      log.debug('vendor del map', vendor)
-      log.debug("map...", scriptContext.value);
+      var vendorParam = runtime.getCurrentScript().getParameter({ name: 'custscript_param_vendor' });
+      var locationParam = runtime.getCurrentScript().getParameter({ name: 'custscript_param_location' });
       var searchResult = JSON.parse(scriptContext.value);
       var total = searchResult.values.total;
-      var memo = searchResult.values.memo;
-      var refNumber = searchResult.values.refNumber;
+      var vendor = searchResult.values.entity.value;
       var location = searchResult.values.location.value;
-      var vendorS = searchResult.values.location.value;
-      log.debug("vendorS", vendorS);
-      log.debug("total", total);
-      log.debug("location", location);
-      if(vendor == vendorS){
-        log.debug("es igual el vendor", null)
+      var totalRecord = 0;
+      if(vendorParam == vendor && locationParam == location){
+        totalRecord += total;
       }
+      scriptContext.write(vendorParam, totalRecord);
     } catch (error) {
       log.error("Error Map...", error);
     }
@@ -61,7 +56,12 @@ define(["N/search"], function (search) {
    */
   function reduce(scriptContext) {
     try {
-        log.debug("Reduce...", scriptContext.value);
+      log.debug('reduce', scriptContext.values);
+      var vendor = scriptContext.key;
+      var templateId = Number(runtime.getCurrentScript().getParameter({ name: 'custscript_bill_orders_template' }));
+      var renderer = render.mergeEmail({ entity: { type: 'vendor', id: Number(vendor) }, templateId: templateId });
+     
+      email.send({ author: 21, recipients: [vendor], subject: renderer.subject, body: renderer.body, attachments: attachments });
       } catch (error) {
           log.error("Error Reduce...", error)
       }
